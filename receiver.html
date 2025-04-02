@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Camera Receiver</title>
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 600px; margin: 0 auto; }
+    video { background: #000; width: 100%; margin: 10px 0; }
+    input { padding: 8px; width: 200px; }
+    button { padding: 8px 15px; margin-left: 5px; background: #4285f4; color: white; border: none; }
+    #status { color: #666; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Camera Receiver</h1>
+  <video id="remoteVideo" autoplay playsinline></video>
+  
+  <div>
+    <input type="text" id="peerIdInput" placeholder="Enter sender ID">
+    <button id="connectButton">Connect</button>
+  </div>
+  
+  <p id="status">Waiting for connection...</p>
+
+  <script>
+    const remoteVideo = document.getElementById('remoteVideo');
+    const peerIdInput = document.getElementById('peerIdInput');
+    const connectButton = document.getElementById('connectButton');
+    const statusEl = document.getElementById('status');
+
+    // Auto-fill ID if coming from QR code
+    if (window.location.hash) {
+      peerIdInput.value = window.location.hash.substring(1);
+      statusEl.textContent = "Sender ID detected from QR code. Click Connect.";
+    }
+
+    let peer;
+
+    // Initialize PeerJS
+    function initPeer() {
+      peer = new Peer({
+        host: '0.peerjs.com',
+        secure: true,
+        debug: 3
+      });
+
+      peer.on('open', () => {
+        statusEl.textContent = "Ready to connect";
+        
+        // Handle incoming video
+        peer.on('call', (call) => {
+          call.answer();
+          call.on('stream', (stream) => {
+            remoteVideo.srcObject = stream;
+            statusEl.textContent = "Video connected!";
+          });
+        });
+      });
+
+      peer.on('error', err => {
+        console.error('Peer error:', err);
+        statusEl.textContent = "Error: " + err.message;
+      });
+    }
+
+    // Manual connection
+    connectButton.addEventListener('click', () => {
+      const senderId = peerIdInput.value.trim();
+      if (!senderId) return alert("Please enter sender ID");
+      
+      statusEl.textContent = "Connecting...";
+      const conn = peer.connect(senderId);
+      
+      conn.on('open', () => {
+        statusEl.textContent = "Connected! Starting video...";
+      });
+    });
+
+    // Initialize when page loads
+    initPeer();
+  </script>
+</body>
+</html>
